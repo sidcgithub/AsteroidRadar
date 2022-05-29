@@ -6,12 +6,15 @@ import android.view.View.GONE
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.coroutineScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.squareup.picasso.Picasso
 import com.udacity.asteroidradar.BuildConfig
 import com.udacity.asteroidradar.R
 import com.udacity.asteroidradar.databinding.FragmentMainBinding
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 class MainFragment : Fragment() {
 
@@ -19,14 +22,13 @@ class MainFragment : Fragment() {
         val activity = requireNotNull(this.activity) {
             "You can only access the viewModel after onViewCreated()"
         }
-        //The ViewModelProviders (plural) is deprecated.
-        //ViewModelProviders.of(this, DevByteViewModel.Factory(activity.application)).get(DevByteViewModel::class.java)
         ViewModelProvider(
             this,
             MainViewModel.Factory(activity.application)
         )[MainViewModel::class.java]
 
     }
+    lateinit var asteroidAdapter: AsteroidAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -35,7 +37,7 @@ class MainFragment : Fragment() {
         val binding = FragmentMainBinding.inflate(inflater)
         binding.lifecycleOwner = this
 
-        val asteroidAdapter = AsteroidAdapter(AsteroidClick {
+        asteroidAdapter = AsteroidAdapter(AsteroidClick {
             val action = MainFragmentDirections.actionShowDetail(it)
             findNavController().navigate(action)
         })
@@ -46,16 +48,18 @@ class MainFragment : Fragment() {
                 Picasso.with(requireContext()).load(it.url).into(binding.activityMainImageOfTheDay);
             }
         }
+        binding.asteroidRecycler.apply {
+            adapter = asteroidAdapter
+            layoutManager = LinearLayoutManager(context)
+        }
 
-        viewModel.asteroids.observe(viewLifecycleOwner) {
-            if (!it.isNullOrEmpty()) {
-                asteroidAdapter.asteroids = it
-                binding.asteroidRecycler.apply {
-                    adapter = asteroidAdapter
-                    layoutManager = LinearLayoutManager(context)
+        lifecycle.coroutineScope.launch {
+
+            viewModel.setAsteroidPeriod(Period.ALL)
+                .collect {
+                    asteroidAdapter.submitList(it)
+                    binding.statusLoadingWheel.visibility = GONE
                 }
-                binding.statusLoadingWheel.visibility = GONE
-            }
         }
 
 
@@ -70,6 +74,16 @@ class MainFragment : Fragment() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        lifecycle.coroutineScope.launch {
+            when (item.itemId) {
+                R.id.show_all_menu -> viewModel.setAsteroidPeriod(Period.ALL)
+                R.id.show_week_menu -> viewModel.setAsteroidPeriod(Period.WEEK)
+                R.id.show_today_menu -> viewModel.setAsteroidPeriod(Period.DAY)
+                else -> throw Exception()
+            }.collect {
+                asteroidAdapter.submitList(it)
+            }
+        }
         return true
     }
 }

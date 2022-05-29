@@ -4,6 +4,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.annotation.LayoutRes
 import androidx.databinding.DataBindingUtil
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.udacity.asteroidradar.R
 import com.udacity.asteroidradar.databinding.AsteroidItemBinding
@@ -16,17 +18,32 @@ class AsteroidClick(val block: (Asteroid) -> Unit) {
     }
 }
 
-class AsteroidAdapter(val callback: AsteroidClick) : RecyclerView.Adapter<AsteroidViewHolder>() {
+object AsteroidDiffCallback : DiffUtil.ItemCallback<Asteroid>() {
+    override fun areItemsTheSame(oldItem: Asteroid, newItem: Asteroid): Boolean {
+        return oldItem.id == newItem.id
+    }
 
-    var asteroids: List<Asteroid> = emptyList()
-        set(value) {
-            field = value
-            // For an extra challenge, update this to use the paging library.
+    override fun areContentsTheSame(oldItem: Asteroid, newItem: Asteroid): Boolean {
+        return oldItem == newItem
+    }
+}
 
-            // Notify any registered observers that the data set has changed. This will cause every
-            // element in our RecyclerView to be invalidated.
-            notifyDataSetChanged()
+class AsteroidAdapter(val callback: AsteroidClick) :
+    ListAdapter<Asteroid, AsteroidAdapter.AsteroidViewHolder>(AsteroidDiffCallback) {
+
+    class AsteroidViewHolder(val viewDataBinding: AsteroidItemBinding) :
+        RecyclerView.ViewHolder(viewDataBinding.root) {
+        fun bind(asteroid: Asteroid, callback: AsteroidClick) {
+            viewDataBinding.asteroid = asteroid
+            viewDataBinding.callback = callback
         }
+
+        companion object {
+            @LayoutRes
+            val LAYOUT = R.layout.asteroid_item
+        }
+    }
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AsteroidViewHolder {
         val withDataBinding: AsteroidItemBinding = DataBindingUtil.inflate(
@@ -38,21 +55,9 @@ class AsteroidAdapter(val callback: AsteroidClick) : RecyclerView.Adapter<Astero
         return AsteroidViewHolder(withDataBinding)
     }
 
-    override fun getItemCount() = asteroids.size
-
     override fun onBindViewHolder(holder: AsteroidViewHolder, position: Int) {
-        holder.viewDataBinding.also {
-            it.asteroid = asteroids[position]
-            it.callback = callback
-        }
+        holder.bind(getItem(position), callback)
     }
 
 }
 
-class AsteroidViewHolder(val viewDataBinding: AsteroidItemBinding) :
-    RecyclerView.ViewHolder(viewDataBinding.root) {
-    companion object {
-        @LayoutRes
-        val LAYOUT = R.layout.asteroid_item
-    }
-}

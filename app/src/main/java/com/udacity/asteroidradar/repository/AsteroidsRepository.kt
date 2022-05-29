@@ -10,15 +10,13 @@ import com.udacity.asteroidradar.domain.PicOfTheDay
 import com.udacity.asteroidradar.network.Network
 import com.udacity.asteroidradar.network.toDatabaseModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 class AsteroidsRepository(private val database: AsteroidDatabase) {
 
-
-    val asteroids: LiveData<List<Asteroid>> =
-        Transformations.map(database.asteroidDao.getAsteroids()) {
-            it.toDomainModel()
-        }
+    fun setAsteroidPeriod(days: Int = 365) = database.asteroidDao.getAsteroids(days).map { it.toDomainModel() }
     val picOfTheDay: LiveData<PicOfTheDay> =
         Transformations.map(database.picOfTheDayDao.getPicData()) {
             it?.toDomainModel()
